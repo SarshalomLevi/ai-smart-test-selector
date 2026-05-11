@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+
 import streamlit as st
 import pandas as pd
 
@@ -5,10 +9,6 @@ from src.data.loader import load_data
 from src.models.feature_engineering import add_features
 from src.models.ml_model import train_model
 from src.models.ranking import rank_tests
-
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
 st.set_page_config(
     page_title="AI Smart Test Selector",
@@ -79,11 +79,33 @@ def color_risk(val):
 
 st.subheader("📊 Ranked Tests")
 
-styled_df = filtered_df[["test_name", "failure_probability"]].sort_values(
-    "failure_probability", ascending=False
-).style.map(color_risk, subset=["failure_probability"])
+for _, row in filtered_df.iterrows():
 
-st.dataframe(styled_df, use_container_width=True)
+    col1, col2, col3 = st.columns([2, 2, 4])
+
+    with col1:
+        st.write(row["test_name"])
+
+    with col2:
+        st.write(f"{row['failure_probability']:.2f}")
+
+    with col3:
+        st.write(row.get("explanation", "No explanation"))
+
+    st.divider()
+
+st.subheader("🧪 Test Simulation")
+
+if st.button(f"Run {selected_test}"):
+
+    prob = float(selected_row["failure_probability"])
+
+    if prob > 0.7:
+        st.error("❌ Test FAILED (High risk detected)")
+    elif prob > 0.4:
+        st.warning("⚠️ Test unstable")
+    else:
+        st.success("✅ Test PASSED")
 
 # -------------------------
 # GRAPH
@@ -103,4 +125,24 @@ st.dataframe(
     filtered_df.sort_values(
         "failure_probability", ascending=False
     ).head(5)
+)
+
+# -------------------------
+# EXPORT RELEASE TEST SUITE
+# -------------------------
+
+st.subheader("📦 Generate Release Test Suite")
+
+release_df = filtered_df.sort_values(
+    "failure_probability",
+    ascending=False
+).head(5)
+
+csv = release_df.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    label="⬇️ Download Release Test Suite CSV",
+    data=csv,
+    file_name="release_test_suite.csv",
+    mime="text/csv"
 )
