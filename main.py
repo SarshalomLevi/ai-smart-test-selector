@@ -1,12 +1,67 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.metrics import confusion_matrix
+
 from src.data.loader import load_data
 from src.models.feature_engineering import add_features
 from src.models.ml_model import train_model
 from src.evaluation.evaluate_model import evaluate_model
 
-df = load_data()
 
-df = add_features(df)
+def main():
 
-model, X_test, y_test = train_model(df)
+    # -------------------------
+    # 1. LOAD DATA
+    # -------------------------
+    df = load_data()
+    df = add_features(df)
 
-evaluate_model(model, X_test, y_test)
+    # -------------------------
+    # 2. TRAIN MODEL
+    # -------------------------
+    model, X_test, y_test = train_model(df)
+
+    # -------------------------
+    # 3. EVALUATION (TEXT)
+    # -------------------------
+    evaluate_model(model, X_test, y_test)
+
+    # -------------------------
+    # 4. CONFUSION MATRIX
+    # -------------------------
+    cm = confusion_matrix(y_test, model.predict(X_test))
+
+    plt.figure(figsize=(5, 4))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+    plt.title("Confusion Matrix")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.tight_layout()
+    plt.show()
+
+    # -------------------------
+    # 5. FEATURE IMPORTANCE
+    # -------------------------
+    importance = model.feature_importances_
+    features = X_test.columns
+
+    df_importance = pd.DataFrame({
+        "feature": features,
+        "importance": importance
+    }).sort_values("importance", ascending=False)
+
+    plt.figure(figsize=(6, 4))
+    sns.barplot(
+        data=df_importance,
+        x="importance",
+        y="feature"
+    )
+    plt.title("Feature Importance")
+    plt.tight_layout()
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()
