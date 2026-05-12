@@ -71,4 +71,4 @@ def train_model(df):
 
     print("MODEL ACCURACY:", acc)
 
-    return model
+    return model, X_test, y_test
