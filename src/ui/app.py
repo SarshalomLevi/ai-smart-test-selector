@@ -98,22 +98,83 @@ st.dataframe(selected_row)
 # -------------------------
 # RANKING TABLE
 # -------------------------
-st.subheader("📊 Ranked Tests")
+# st.subheader("📊 Ranked Tests")
+
+# for _, row in filtered_df.iterrows():
+
+#     col1, col2, col3 = st.columns([2, 2, 4])
+
+#     with col1:
+#         st.write(row["test_name"])
+
+#     with col2:
+#         st.write(f"{row['failure_probability']:.2f}")
+
+#     with col3:
+#         st.write(row.get("explanation", "No explanation"))
+
+#     st.divider()
+
+# -------------------------
+# INTERACTIVE RANKING
+# -------------------------
+st.subheader("📊 AI Test Ranking")
 
 for _, row in filtered_df.iterrows():
 
-    col1, col2, col3 = st.columns([2, 2, 4])
+    risk = row["failure_probability"]
 
-    with col1:
-        st.write(row["test_name"])
+    # Color by risk
+    if risk > 0.7:
+        risk_label = "🔴 HIGH RISK"
+    elif risk > 0.4:
+        risk_label = "🟡 MEDIUM RISK"
+    else:
+        risk_label = "🟢 LOW RISK"
 
-    with col2:
-        st.write(f"{row['failure_probability']:.2f}")
+    with st.expander(
+        f"{row['test_name']} | Risk: {risk:.2f} | {risk_label}"
+    ):
 
-    with col3:
-        st.write(row.get("explanation", "No explanation"))
+        st.write("### 🧠 AI Explanation")
+        st.info(row.get("explanation", "No explanation available"))
 
-    st.divider()
+        st.write("### 📊 Test Data")
+
+        st.dataframe(
+            pd.DataFrame({
+                "Metric": [
+                    "Runtime (sec)",
+                    "Previous Failures",
+                    "Run Count",
+                    "Severity Score"
+                ],
+                "Value": [
+                    row["runtime_sec"],
+                    row["previous_failures"],
+                    row["run_count"],
+                    row["severity_score"]
+                ]
+            }),
+            use_container_width=True
+        )
+
+        st.write("### 🎯 Recommended Action")
+
+        if risk > 0.7:
+            st.error(
+                "Run this test early in regression and monitor closely."
+            )
+
+        elif risk > 0.4:
+            st.warning(
+                "Test shows instability. Recommended for mid-priority execution."
+            )
+
+        else:
+            st.success(
+                "Low-risk stable test. Can run later in regression."
+            ) 
 
 
 # -------------------------
