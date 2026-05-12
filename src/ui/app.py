@@ -1,8 +1,11 @@
 import sys
 import os
 
-# Allows import from root
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+sys.path.append(
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../")
+    )
+)
 
 import streamlit as st
 import pandas as pd
@@ -48,21 +51,20 @@ ranked_df = rank_tests(model, df)
 
 
 # -------------------------
-# KPI SECTION
+# RISK GROUP
 # -------------------------
-col1, col2, col3 = st.columns(3)
+def get_risk_group(risk):
+    if risk > 0.85:
+        return "CRITICAL"
+    elif risk > 0.7:
+        return "HIGH"
+    elif risk > 0.4:
+        return "MEDIUM"
+    else:
+        return "LOW"
 
-col1.metric("Total Tests", len(ranked_df))
-col2.metric(
-    "High Risk Tests",
-    len(ranked_df[ranked_df["failure_probability"] > 0.7])
-)
-col3.metric(
-    "Avg Risk",
-    f"{ranked_df['failure_probability'].mean():.2f}"
-)
 
-st.divider()
+ranked_df["risk_group"] = ranked_df["failure_probability"].apply(get_risk_group)
 
 
 # -------------------------
@@ -80,144 +82,131 @@ filtered_df = ranked_df[
 
 
 # -------------------------
-# SELECT TEST
+# TABS (RISK FOLDERS)
 # -------------------------
-selected_test = st.sidebar.selectbox(
-    "Select Test",
-    filtered_df["test_name"].tolist()
+tab1, tab2, tab3, tab4 = st.tabs(
+    ["🔥 CRITICAL", "🔴 HIGH", "🟡 MEDIUM", "🟢 LOW"]
 )
 
-selected_row = filtered_df[
-    filtered_df["test_name"] == selected_test
-]
-
-st.subheader("📌 Selected Test")
-st.dataframe(selected_row)
-
 
 # -------------------------
-# RANKING TABLE
+# RENDER FUNCTION
 # -------------------------
-# st.subheader("📊 Ranked Tests")
+def render_tests(df):
 
-# for _, row in filtered_df.iterrows():
+    for _, row in df.iterrows():
 
-#     col1, col2, col3 = st.columns([2, 2, 4])
-
-#     with col1:
-#         st.write(row["test_name"])
-
-#     with col2:
-#         st.write(f"{row['failure_probability']:.2f}")
-
-#     with col3:
-#         st.write(row.get("explanation", "No explanation"))
-
-#     st.divider()
-
-# -------------------------
-# INTERACTIVE RANKING
-# -------------------------
-st.subheader("📊 AI Test Ranking")
-
-for _, row in filtered_df.iterrows():
-
-    risk = row["failure_probability"]
-
-    # Risk classification
-    if risk > 0.85:
-        risk_label = "🔥 CRITICAL RISK"
-
-    elif risk > 0.7:
-        risk_label = "🔴 HIGH RISK"
-
-    elif risk > 0.4:
-        risk_label = "🟡 MEDIUM RISK"
-
-    else:
-        risk_label = "🟢 LOW RISK"
-
-    with st.expander(
-        f"{row['test_name']} | Risk: {risk:.2f} | {risk_label}"
-    ):
-
-        st.write("### 🧠 AI Explanation")
-        st.info(row.get("explanation", "No explanation available"))
-
-        st.write("### 📊 Test Data")
-
-        st.dataframe(
-            pd.DataFrame({
-                "Metric": [
-                    "Runtime (sec)",
-                    "Previous Failures",
-                    "Run Count",
-                    "Severity Score"
-                ],
-                "Value": [
-                    row["runtime_sec"],
-                    row["previous_failures"],
-                    row["run_count"],
-                    row["severity_score"]
-                ]
-            }),
-            use_container_width=True
-        )
-
-        st.write("### 🎯 Recommended Action")
+        risk = row["failure_probability"]
 
         if risk > 0.85:
-
-            st.error(
-                "🔥 Critical risk detected.\n\n"
-                "- Run immediately in smoke testing\n"
-                "- Monitor logs closely\n"
-                "- Notify firmware owner if failed"
-            )
-
+            risk_label = "🔥 CRITICAL RISK"
         elif risk > 0.7:
-
-            st.warning(
-                "⚠️ High-risk test.\n\n"
-                "- Run early in regression\n"
-                "- Prioritize in validation cycle\n"
-                "- Recommended for daily execution"
-            )
-
+            risk_label = "🔴 HIGH RISK"
         elif risk > 0.4:
+            risk_label = "🟡 MEDIUM RISK"
+        else:
+            risk_label = "🟢 LOW RISK"
 
-            st.info(
-                "🟡 Medium-risk test.\n\n"
-                "- Monitor stability trends\n"
-                "- Include in standard regression\n"
-                "- Investigate if failure frequency increases"
+        title = f"{row['test_name']} | {risk:.2f} | {risk_label}"
+
+        with st.expander(title, expanded=False):
+
+            # -------------------------
+            # 1. AI EXPLANATION
+            # -------------------------
+            st.subheader("🧠 AI Explanation")
+            st.info(row.get("explanation", "No explanation available"))
+
+            # -------------------------
+            # 2. TEST DATA
+            # -------------------------
+            st.subheader("📊 Test Data")
+
+            st.dataframe(
+                pd.DataFrame({
+                    "Metric": [
+                        "Runtime (sec)",
+                        "Previous Failures",
+                        "Run Count",
+                        "Severity Score"
+                    ],
+                    "Value": [
+                        row["runtime_sec"],
+                        row["previous_failures"],
+                        row["run_count"],
+                        row["severity_score"]
+                    ]
+                }),
+                use_container_width=True
             )
 
-        else:
+            # -------------------------
+            # 3. RECOMMENDED ACTION
+            # -------------------------
+            st.subheader("🎯 Recommended Action")
 
-            st.success(
-                "✅ Stable low-risk test.\n\n"
-                "- Safe for nightly execution\n"
-                "- Lower execution priority\n"
-                "- Minimal monitoring required"
-            ) 
+            if risk > 0.85:
+
+                st.error(
+                    "🔥 CRITICAL RISK\n"
+                    "- Run immediately in smoke testing\n"
+                    "- Monitor logs closely\n"
+                    "- Escalate if failure repeats"
+                )
+
+            elif risk > 0.7:
+
+                st.warning(
+                    "HIGH RISK\n"
+                    "- Run early in regression\n"
+                    "- Prioritize execution"
+                )
+
+            elif risk > 0.4:
+
+                st.info(
+                    "MEDIUM RISK\n"
+                    "- Include in regression suite\n"
+                    "- Monitor trends"
+                )
+
+            else:
+
+                st.success(
+                    "LOW RISK\n"
+                    "- Safe for nightly execution\n"
+                    "- Low priority"
+                )
+
+            st.divider()
 
 
 # -------------------------
-# SIMULATION
+# TAB CONTENT
 # -------------------------
-st.subheader("🧪 Test Simulation")
+with tab1:
+    render_tests(filtered_df[filtered_df["failure_probability"] > 0.85])
 
-if st.button(f"Run {selected_test}"):
+with tab2:
+    render_tests(
+        filtered_df[
+            (filtered_df["failure_probability"] > 0.7) &
+            (filtered_df["failure_probability"] <= 0.85)
+        ]
+    )
 
-    prob = float(selected_row["failure_probability"])
+with tab3:
+    render_tests(
+        filtered_df[
+            (filtered_df["failure_probability"] > 0.4) &
+            (filtered_df["failure_probability"] <= 0.7)
+        ]
+    )
 
-    if prob > 0.7:
-        st.error("❌ Test FAILED (High risk detected)")
-    elif prob > 0.4:
-        st.warning("⚠️ Test unstable")
-    else:
-        st.success("✅ Test PASSED")
+with tab4:
+    render_tests(
+        filtered_df[filtered_df["failure_probability"] <= 0.4]
+    )
 
 
 # -------------------------
@@ -226,7 +215,9 @@ if st.button(f"Run {selected_test}"):
 st.subheader("📈 Risk Distribution")
 
 st.bar_chart(
-    filtered_df.set_index("test_name")["failure_probability"]
+    filtered_df.set_index("test_name")[
+        "failure_probability"
+    ]
 )
 
 
@@ -244,26 +235,6 @@ st.dataframe(
 
 
 # -------------------------
-# EXPORT CSV
-# -------------------------
-st.subheader("📦 Generate Release Test Suite")
-
-release_df = filtered_df.sort_values(
-    "failure_probability",
-    ascending=False
-).head(5)
-
-csv = release_df.to_csv(index=False).encode("utf-8")
-
-st.download_button(
-    label="⬇️ Download Release Test Suite CSV",
-    data=csv,
-    file_name="release_test_suite.csv",
-    mime="text/csv"
-)
-
-
-# -------------------------
 # CONFUSION MATRIX
 # -------------------------
 st.subheader("📊 Confusion Matrix")
@@ -271,7 +242,14 @@ st.subheader("📊 Confusion Matrix")
 cm = confusion_matrix(y_test, model.predict(X_test))
 
 fig, ax = plt.subplots()
-sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
+
+sns.heatmap(
+    cm,
+    annot=True,
+    fmt="d",
+    cmap="Blues",
+    ax=ax
+)
 
 ax.set_xlabel("Predicted")
 ax.set_ylabel("Actual")
@@ -302,3 +280,23 @@ sns.barplot(
 )
 
 st.pyplot(fig2)
+
+
+# -------------------------
+# EXPORT CSV
+# -------------------------
+st.subheader("📦 Generate Release Test Suite")
+
+release_df = filtered_df.sort_values(
+    "failure_probability",
+    ascending=False
+).head(5)
+
+csv = release_df.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    label="⬇️ Download Release Test Suite CSV",
+    data=csv,
+    file_name="release_test_suite.csv",
+    mime="text/csv"
+)
