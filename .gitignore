@@ -1,4 +1,24 @@
+# Python virtual environment
 venv/
+.venv/
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebook
 .ipynb_checkpoints/
+
+# Logs
+*.log
+gcm-diagnose.log
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
