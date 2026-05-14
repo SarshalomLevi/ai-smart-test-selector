@@ -22,3 +22,6 @@ gcm-diagnose.log
 # OS files
 .DS_Store
 Thumbs.db
+
+# Backup folder
+ai-smart-test-selector-backup/
