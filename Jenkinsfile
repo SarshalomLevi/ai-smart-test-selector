@@ -10,7 +10,7 @@ pipeline {
 
     environment {
         PYTHON_IMAGE = "python:3.11-slim"
-        WORKDIR = "/app"
+        WORKDIR = "$WORKSPACE"
     }
 
     stages {
@@ -19,6 +19,15 @@ pipeline {
             steps {
                 cleanWs()
                 checkout scm
+            }
+        }
+
+        stage('Fix Permissions') {
+            steps {
+                sh '''
+                    echo "Fixing workspace permissions..."
+                    chmod -R a+rwX $WORKSPACE
+                '''
             }
         }
 
@@ -48,8 +57,9 @@ pipeline {
             steps {
                 sh '''
                     docker run --rm \
-                        -v $WORKSPACE:$WORKDIR \
-                        -w $WORKDIR \
+                        --user $(id -u):$(id -g) \
+                        -v $WORKSPACE:$WORKSPACE \
+                        -w $WORKSPACE \
                         $PYTHON_IMAGE bash -c "
                             set -e
                             pip install --upgrade pip
@@ -63,8 +73,9 @@ pipeline {
             steps {
                 sh '''
                     docker run --rm \
-                        -v $WORKSPACE:$WORKDIR \
-                        -w $WORKDIR \
+                        --user $(id -u):$(id -g) \
+                        -v $WORKSPACE:$WORKSPACE \
+                        -w $WORKSPACE \
                         $PYTHON_IMAGE bash -c "
                             set -e
                             pip install flake8
@@ -78,8 +89,9 @@ pipeline {
             steps {
                 sh '''
                     docker run --rm \
-                        -v $WORKSPACE:$WORKDIR \
-                        -w $WORKDIR \
+                        --user $(id -u):$(id -g) \
+                        -v $WORKSPACE:$WORKSPACE \
+                        -w $WORKSPACE \
                         $PYTHON_IMAGE bash -c "
                             set -e
                             pip install bandit
@@ -93,8 +105,9 @@ pipeline {
             steps {
                 sh '''
                     docker run --rm \
-                        -v $WORKSPACE:$WORKDIR \
-                        -w $WORKDIR \
+                        --user $(id -u):$(id -g) \
+                        -v $WORKSPACE:$WORKSPACE \
+                        -w $WORKSPACE \
                         $PYTHON_IMAGE bash -c "
                             set -e
                             pip install -r requirements.txt
@@ -109,8 +122,9 @@ pipeline {
             steps {
                 sh '''
                     docker run --rm \
-                        -v $WORKSPACE:$WORKDIR \
-                        -w $WORKDIR \
+                        --user $(id -u):$(id -g) \
+                        -v $WORKSPACE:$WORKSPACE \
+                        -w $WORKSPACE \
                         $PYTHON_IMAGE bash -c "
                             set -e
                             python main.py --help || echo 'No CLI entrypoint'
