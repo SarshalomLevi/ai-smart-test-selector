@@ -12,7 +12,6 @@ pipeline {
     environment {
         PYTHON_IMAGE = 'python:3.11-slim'
         PIP_CACHE_DIR = '/tmp/pip-cache'
-        WS = "${WORKSPACE}"
     }
 
     stages {
@@ -39,6 +38,7 @@ pipeline {
                 sh '''
                 echo "=== HOST CHECK ==="
                 ls -la
+
                 test -f requirements.txt && echo "requirements EXISTS" || echo "missing requirements"
 
                 echo "=== FIRST LINES ==="
@@ -61,16 +61,16 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
-                    -v "$WS:/app" \
+                    -v "$(pwd):/app" \
                     -w /app \
                     ${PYTHON_IMAGE} \
                     bash -c "
                         set -e
                         echo '=== INSIDE CONTAINER ==='
                         pwd
-                        ls -la /app
+                        ls -la
                         echo '=== REQUIREMENTS INSIDE CONTAINER ==='
-                        cat /app/requirements.txt | head -n 10 || true
+                        cat requirements.txt | head -n 10 || true
                     "
                 '''
             }
@@ -80,19 +80,21 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
-                    -v "$WS:/app" \
+                    -v "$(pwd):/app" \
                     -v "$PIP_CACHE_DIR:/root/.cache/pip" \
                     -w /app \
                     ${PYTHON_IMAGE} \
                     bash -c "
                         set -e
-                        echo 'Upgrading pip...'
+
+                        echo '=== INSTALL START ==='
+
                         pip install --upgrade pip
 
-                        echo 'Installing requirements...'
-                        cat /app/requirements.txt
+                        echo 'requirements file:'
+                        ls -la requirements.txt
 
-                        pip install -r /app/requirements.txt
+                        pip install -r requirements.txt
 
                         echo 'Installing dev tools...'
                         pip install pytest flake8 pip-audit
@@ -108,7 +110,7 @@ pipeline {
                     steps {
                         sh '''
                         docker run --rm \
-                            -v "$WS:/app" \
+                            -v "$(pwd):/app" \
                             -w /app \
                             ${PYTHON_IMAGE} \
                             bash -c "
@@ -123,7 +125,7 @@ pipeline {
                     steps {
                         sh '''
                         docker run --rm \
-                            -v "$WS:/app" \
+                            -v "$(pwd):/app" \
                             -w /app \
                             ${PYTHON_IMAGE} \
                             bash -c "
@@ -140,7 +142,7 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
-                    -v "$WS:/app" \
+                    -v "$(pwd):/app" \
                     -w /app \
                     ${PYTHON_IMAGE} \
                     bash -c "
@@ -161,7 +163,7 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
-                    -v "$WS:/app" \
+                    -v "$(pwd):/app" \
                     -w /app \
                     ${PYTHON_IMAGE} \
                     python -c "print('Smoke Test Passed')"
