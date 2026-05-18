@@ -12,7 +12,6 @@ pipeline {
     environment {
         PYTHON_IMAGE = 'python:3.11-slim'
         PIP_CACHE_DIR = '/tmp/pip-cache'
-        WS = "${WORKSPACE}"
     }
 
     stages {
@@ -30,7 +29,17 @@ pipeline {
                 echo "=== WORKSPACE DEBUG ==="
                 pwd
                 ls -la
-                echo "WS=$WORKSPACE"
+                '''
+            }
+        }
+
+        stage('DEBUG ENV (TEMP)') {
+            steps {
+                sh '''
+                echo "=== DEBUG ENV ==="
+                echo "WORKSPACE=$WORKSPACE"
+                echo "PWD=$(pwd)"
+                env | grep WORKSPACE || true
                 '''
             }
         }
@@ -39,12 +48,8 @@ pipeline {
             steps {
                 sh '''
                 echo "=== HOST CHECK ==="
-                ls -la
-
-                test -f requirements.txt && echo "requirements EXISTS" || echo "missing requirements"
-
-                echo "=== FIRST LINES ==="
-                head -n 10 requirements.txt || true
+                test -f requirements.txt && echo "requirements EXISTS" || exit 1
+                head -n 5 requirements.txt
                 '''
             }
         }
@@ -52,9 +57,7 @@ pipeline {
         stage('Docker Sanity Check') {
             steps {
                 sh '''
-                echo "Docker version check"
                 docker version
-                docker info > /dev/null
                 '''
             }
         }
@@ -63,16 +66,15 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
-                    -v "${WS}:${WS}" \
-                    -w "${WS}" \
+                    -v ${WORKSPACE}:/app \
+                    -w /app \
                     ${PYTHON_IMAGE} \
                     bash -c "
                         set -e
                         echo '=== INSIDE CONTAINER ==='
                         pwd
-                        ls -la
-                        echo '=== REQUIREMENTS INSIDE CONTAINER ==='
-                        cat requirements.txt | head -n 10 || true
+                        ls -la /app
+                        test -f /app/requirements.txt
                     "
                 '''
             }
@@ -82,23 +84,15 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
-                    -v "${WS}:${WS}" \
-                    -v "${PIP_CACHE_DIR}:/root/.cache/pip" \
-                    -w "${WS}" \
+                    -v ${WORKSPACE}:/app \
+                    -v ${PIP_CACHE_DIR}:/root/.cache/pip \
+                    -w /app \
                     ${PYTHON_IMAGE} \
                     bash -c "
                         set -e
-
                         echo '=== INSTALL START ==='
-
                         pip install --upgrade pip
-
-                        echo 'requirements file:'
-                        ls -la requirements.txt
-
                         pip install -r requirements.txt
-
-                        echo 'Installing dev tools...'
                         pip install pytest flake8 pip-audit
                     "
                 '''
@@ -112,13 +106,10 @@ pipeline {
                     steps {
                         sh '''
                         docker run --rm \
-                            -v "${WS}:${WS}" \
-                            -w "${WS}" \
+                            -v ${WORKSPACE}:/app \
+                            -w /app \
                             ${PYTHON_IMAGE} \
-                            bash -c "
-                                set -e
-                                flake8 . --count --statistics
-                            "
+                            flake8 . --count --statistics
                         '''
                     }
                 }
@@ -127,13 +118,10 @@ pipeline {
                     steps {
                         sh '''
                         docker run --rm \
-                            -v "${WS}:${WS}" \
-                            -w "${WS}" \
+                            -v ${WORKSPACE}:/app \
+                            -w /app \
                             ${PYTHON_IMAGE} \
-                            bash -c "
-                                set -e
-                                pip-audit || true
-                            "
+                            pip-audit || true
                         '''
                     }
                 }
@@ -144,13 +132,10 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
-                    -v "${WS}:${WS}" \
-                    -w "${WS}" \
+                    -v ${WORKSPACE}:/app \
+                    -w /app \
                     ${PYTHON_IMAGE} \
-                    bash -c "
-                        set -e
-                        pytest -v --junitxml=${WS}/test-results.xml || true
-                    "
+                    pytest -v --junitxml=/app/test-results.xml || true
                 '''
             }
         }
@@ -165,8 +150,8 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
-                    -v "${WS}:${WS}" \
-                    -w "${WS}" \
+                    -v ${WORKSPACE}:/app \
+                    -w /app \
                     ${PYTHON_IMAGE} \
                     python -c "print('Smoke Test Passed')"
                 '''
