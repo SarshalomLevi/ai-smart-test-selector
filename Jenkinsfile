@@ -23,12 +23,27 @@ pipeline {
             }
         }
 
-        stage('Debug Workspace (TEMP)') {
+        stage('Debug Workspace') {
             steps {
                 sh '''
                 echo "=== WORKSPACE DEBUG ==="
                 pwd
                 ls -la
+                echo "=== REQUIREMENTS EXISTS? ==="
+                test -f requirements.txt && echo "YES" || echo "NO"
+                '''
+            }
+        }
+
+        stage('Verify Requirements') {
+            steps {
+                sh '''
+                echo "WORKSPACE (host view):"
+                pwd
+                ls -la
+
+                echo "requirements.txt content:"
+                cat requirements.txt
                 '''
             }
         }
@@ -53,13 +68,14 @@ pipeline {
                     ${PYTHON_IMAGE} \
                     bash -c "
                         set -e
-                        echo '=== INSIDE CONTAINER CHECK ==='
-                        ls -la
+                        echo '=== INSIDE CONTAINER ==='
+                        ls -la /app
+
                         echo '=== REQUIREMENTS CHECK ==='
-                        cat requirements.txt
+                        cat /app/requirements.txt
 
                         pip install --upgrade pip
-                        pip install -r requirements.txt
+                        pip install -r /app/requirements.txt
                         pip install pytest flake8 pip-audit
                     "
                 '''
@@ -67,7 +83,6 @@ pipeline {
         }
 
         stage('Quality Gates') {
-
             parallel {
 
                 stage('Lint') {
@@ -79,7 +94,6 @@ pipeline {
                             ${PYTHON_IMAGE} \
                             bash -c "
                                 set -e
-                                echo 'Running flake8...'
                                 flake8 . --count --statistics
                             "
                         '''
@@ -95,7 +109,6 @@ pipeline {
                             ${PYTHON_IMAGE} \
                             bash -c "
                                 set -e
-                                echo 'Running pip-audit...'
                                 pip-audit
                             "
                         '''
@@ -113,7 +126,7 @@ pipeline {
                     ${PYTHON_IMAGE} \
                     bash -c "
                         set -e
-                        pytest -v --junitxml=test-results.xml
+                        pytest -v --junitxml=/app/test-results.xml
                     "
                 '''
             }
@@ -140,7 +153,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ NVIDIA-style pipeline passed"
+            echo "✅ Pipeline passed"
         }
 
         failure {
