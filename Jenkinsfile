@@ -22,6 +22,16 @@ pipeline {
             }
         }
 
+        stage('Debug Workspace (TEMP)') {
+            steps {
+                sh '''
+                echo "=== WORKSPACE DEBUG ==="
+                pwd
+                ls -la
+                '''
+            }
+        }
+
         stage('Docker Sanity Check') {
             steps {
                 sh '''
@@ -42,6 +52,11 @@ pipeline {
                     ${PYTHON_IMAGE} \
                     bash -c "
                         set -e
+                        echo '=== INSIDE CONTAINER CHECK ==='
+                        ls -la
+                        echo '=== REQUIREMENTS CHECK ==='
+                        cat requirements.txt
+
                         pip install --upgrade pip
                         pip install -r requirements.txt
                         pip install pytest flake8 pip-audit
