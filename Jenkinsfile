@@ -12,6 +12,7 @@ pipeline {
     environment {
         PYTHON_IMAGE = 'python:3.11-slim'
         PIP_CACHE_DIR = '/tmp/pip-cache'
+        WS = "${WORKSPACE}"
     }
 
     stages {
@@ -29,6 +30,7 @@ pipeline {
                 echo "=== WORKSPACE DEBUG ==="
                 pwd
                 ls -la
+                echo "WS=$WORKSPACE"
                 '''
             }
         }
@@ -61,8 +63,8 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
-                    -v "$WORKSPACE:/app" \
-                    -w /app \
+                    -v "${WS}:${WS}" \
+                    -w "${WS}" \
                     ${PYTHON_IMAGE} \
                     bash -c "
                         set -e
@@ -80,9 +82,9 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
-                    -v "$WORKSPACE:/app" \
-                    -v "$PIP_CACHE_DIR:/root/.cache/pip" \
-                    -w /app \
+                    -v "${WS}:${WS}" \
+                    -v "${PIP_CACHE_DIR}:/root/.cache/pip" \
+                    -w "${WS}" \
                     ${PYTHON_IMAGE} \
                     bash -c "
                         set -e
@@ -110,8 +112,8 @@ pipeline {
                     steps {
                         sh '''
                         docker run --rm \
-                            -v "$WORKSPACE:/app" \
-                            -w /app \
+                            -v "${WS}:${WS}" \
+                            -w "${WS}" \
                             ${PYTHON_IMAGE} \
                             bash -c "
                                 set -e
@@ -125,8 +127,8 @@ pipeline {
                     steps {
                         sh '''
                         docker run --rm \
-                            -v "$WORKSPACE:/app" \
-                            -w /app \
+                            -v "${WS}:${WS}" \
+                            -w "${WS}" \
                             ${PYTHON_IMAGE} \
                             bash -c "
                                 set -e
@@ -142,12 +144,12 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
-                    -v "$WORKSPACE:/app" \
-                    -w /app \
+                    -v "${WS}:${WS}" \
+                    -w "${WS}" \
                     ${PYTHON_IMAGE} \
                     bash -c "
                         set -e
-                        pytest -v --junitxml=/app/test-results.xml || true
+                        pytest -v --junitxml=${WS}/test-results.xml || true
                     "
                 '''
             }
@@ -163,8 +165,8 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
-                    -v "$WORKSPACE:/app" \
-                    -w /app \
+                    -v "${WS}:${WS}" \
+                    -w "${WS}" \
                     ${PYTHON_IMAGE} \
                     python -c "print('Smoke Test Passed')"
                 '''
