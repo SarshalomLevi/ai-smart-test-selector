@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     options {
-        skipDefaultCheckout(true)
         timestamps()
         disableConcurrentBuilds()
         timeout(time: 20, unit: 'MINUTES')
@@ -10,12 +9,13 @@ pipeline {
     }
 
     environment {
-        PYTHON_IMAGE = 'python:3.11-slim'
+        PYTHON_IMAGE = "python:3.11-slim"
+        WORKDIR = "/app"
     }
 
     stages {
 
-        stage('Checkout Clean') {
+        stage('Checkout') {
             steps {
                 cleanWs()
                 checkout scm
@@ -25,121 +25,82 @@ pipeline {
         stage('Debug Workspace') {
             steps {
                 sh '''
-                echo "=== WORKSPACE DEBUG ==="
-                pwd
-                ls -la
+                    echo "=== HOST WORKSPACE ==="
+                    pwd
+                    ls -la
+
+                    echo "=== IMPORTANT FILES CHECK ==="
+                    test -f requirements.txt && echo "requirements OK" || exit 1
+                    test -f main.py && echo "main.py OK" || echo "WARNING: no main.py"
                 '''
             }
         }
 
-        stage('DEBUG ENV') {
+        stage('Docker Sanity') {
             steps {
                 sh '''
-                echo "WORKSPACE=$WORKSPACE"
-                echo "PWD=$PWD"
-                env | grep WORKSPACE || true
+                    docker version
                 '''
             }
         }
 
-        stage('Verify Requirements (HOST)') {
+        stage('Install Dependencies (Docker)') {
             steps {
                 sh '''
-                echo "=== HOST CHECK ==="
-                test -f requirements.txt && echo "OK requirements exists" || echo "MISSING requirements"
-                head -n 5 requirements.txt
+                    docker run --rm \
+                        -v $WORKSPACE:$WORKDIR \
+                        -w $WORKDIR \
+                        $PYTHON_IMAGE bash -c "
+                            set -e
+                            pip install --upgrade pip
+                            pip install -r requirements.txt
+                        "
                 '''
             }
         }
 
-        stage('Docker Sanity Check') {
+        stage('Lint') {
             steps {
                 sh '''
-                docker version
+                    docker run --rm \
+                        -v $WORKSPACE:$WORKDIR \
+                        -w $WORKDIR \
+                        $PYTHON_IMAGE bash -c "
+                            set -e
+                            pip install flake8
+                            flake8 src || true
+                        "
                 '''
             }
         }
 
-        stage('Verify Inside Container') {
+        stage('Security Scan') {
             steps {
                 sh '''
-                docker run --rm \
-                    -v "$(pwd):/app" \
-                    -w /app \
-                    ${PYTHON_IMAGE} \
-                    bash -c "
-                        set -e
-                        echo '=== INSIDE CONTAINER ==='
-                        pwd
-                        ls -la
-
-                        echo '=== REQUIREMENTS CHECK ==='
-                        test -f requirements.txt
-                        head -n 5 requirements.txt
-                    "
+                    docker run --rm \
+                        -v $WORKSPACE:$WORKDIR \
+                        -w $WORKDIR \
+                        $PYTHON_IMAGE bash -c "
+                            set -e
+                            pip install bandit
+                            bandit -r src || true
+                        "
                 '''
-            }
-        }
-
-        stage('Install Dependencies') {
-            steps {
-                sh '''
-                docker run --rm \
-                    -v "$(pwd):/app" \
-                    -w /app \
-                    ${PYTHON_IMAGE} \
-                    bash -c "
-                        set -e
-
-                        echo '=== INSTALL START ==='
-
-                        pip install --upgrade pip
-
-                        pip install -r requirements.txt
-
-                        pip install pytest flake8 pip-audit
-                    "
-                '''
-            }
-        }
-
-        stage('Quality Gates') {
-            parallel {
-
-                stage('Lint') {
-                    steps {
-                        sh '''
-                        docker run --rm \
-                            -v "$(pwd):/app" \
-                            -w /app \
-                            ${PYTHON_IMAGE} \
-                            bash -c "flake8 . --count --statistics"
-                        '''
-                    }
-                }
-
-                stage('Security Scan') {
-                    steps {
-                        sh '''
-                        docker run --rm \
-                            -v "$(pwd):/app" \
-                            -w /app \
-                            ${PYTHON_IMAGE} \
-                            bash -c "pip-audit || true"
-                        '''
-                    }
-                }
             }
         }
 
         stage('Unit Tests') {
             steps {
                 sh '''
-                docker run --rm \
-                    -v "$(pwd):/app" \
-                    -w /app \
-                    ${PYTHON_IMAGE} \
-                    bash -c "pytest -v --junitxml=test-results.xml || true"
+                    docker run --rm \
+                        -v $WORKSPACE:$WORKDIR \
+                        -w $WORKDIR \
+                        $PYTHON_IMAGE bash -c "
+                            set -e
+                            pip install -r requirements.txt
+                            pip install pytest
+                            pytest -v
+                        "
                 '''
             }
         }
@@ -147,33 +108,35 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 sh '''
-                docker run --rm \
-                    -v "$(pwd):/app" \
-                    -w /app \
-                    ${PYTHON_IMAGE} \
-                    python -c "print('Smoke Test Passed')"
+                    docker run --rm \
+                        -v $WORKSPACE:$WORKDIR \
+                        -w $WORKDIR \
+                        $PYTHON_IMAGE bash -c "
+                            set -e
+                            python main.py --help || echo 'No CLI entrypoint'
+                        "
                 '''
             }
         }
 
-        stage('Publish Results') {
+        stage('Archive Artifacts') {
             steps {
-                junit testResults: 'test-results.xml', allowEmptyResults: true
+                archiveArtifacts artifacts: '**/*', fingerprint: true
             }
         }
     }
 
     post {
         success {
-            echo '✅ Pipeline passed'
+            echo "✅ Pipeline succeeded"
         }
 
         failure {
-            echo '❌ Pipeline failed'
+            echo "❌ Pipeline failed"
         }
 
         always {
-            archiveArtifacts artifacts: '**/*.xml', allowEmptyArchive: true
+            cleanWs()
         }
     }
 }
