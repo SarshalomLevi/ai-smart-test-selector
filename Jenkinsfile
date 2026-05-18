@@ -11,7 +11,6 @@ pipeline {
     environment {
         IMAGE_NAME = "ai-smart-test-selector-ci"
         TAG = "${BUILD_NUMBER}"
-        FULL_IMAGE = "${IMAGE_NAME}:${TAG}"
         WORKDIR = "/app"
     }
 
@@ -24,7 +23,16 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image (Cached CI Image)') {
+        stage('Fix Permissions') {
+            steps {
+                sh '''
+                    echo "Fixing workspace permissions..."
+                    chmod -R a+rwX $WORKSPACE || true
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
             steps {
                 sh '''
                     echo "=== BUILDING CI IMAGE ==="
@@ -41,6 +49,8 @@ pipeline {
             steps {
                 sh '''
                     docker run --rm \
+                        -v $WORKSPACE:$WORKDIR \
+                        -w $WORKDIR \
                         $IMAGE_NAME:$TAG \
                         bash -c "
                             set -e
@@ -54,12 +64,13 @@ pipeline {
             steps {
                 sh '''
                     docker run --rm \
+                        -v $WORKSPACE:$WORKDIR \
+                        -w $WORKDIR \
                         $IMAGE_NAME:$TAG \
                         bash -c "
                             set -e
-
                             echo '=== RUNNING BANDIT ==='
-                            bandit -r src --exit-zero -f json -o bandit-report.json || true
+                            bandit -r src --exit-zero -f json -o bandit-report.json
                         "
                 '''
             }
@@ -69,8 +80,8 @@ pipeline {
             steps {
                 sh '''
                     docker run --rm \
-                        -v $PWD:/app \
-                        -w /app \
+                        -v $WORKSPACE:$WORKDIR \
+                        -w $WORKDIR \
                         $IMAGE_NAME:$TAG \
                         bash -c "
                             set -e
@@ -101,6 +112,8 @@ pipeline {
             steps {
                 sh '''
                     docker run --rm \
+                        -v $WORKSPACE:$WORKDIR \
+                        -w $WORKDIR \
                         $IMAGE_NAME:$TAG \
                         bash -c "
                             set -e
@@ -114,6 +127,8 @@ pipeline {
             steps {
                 sh '''
                     docker run --rm \
+                        -v $WORKSPACE:$WORKDIR \
+                        -w $WORKDIR \
                         $IMAGE_NAME:$TAG \
                         bash -c "
                             set -e
