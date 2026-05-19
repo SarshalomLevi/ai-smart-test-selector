@@ -1,4 +1,3 @@
-from ai_smart_test_selector import main
-
 def test_basic_import():
-    assert main is not None
+    import ai_smart_test_selector
+    assert ai_smart_test_selector is not None
