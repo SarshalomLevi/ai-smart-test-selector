@@ -4,10 +4,10 @@ import seaborn as sns
 
 from sklearn.metrics import confusion_matrix
 
-from src.data.loader import load_data
-from src.models.feature_engineering import add_features
-from src.models.ml_model import train_model
-from src.evaluation.evaluate_model import evaluate_model
+from ai_smart_test_selector.data.loader import load_data
+from ai_smart_test_selector.models.feature_engineering import add_features
+from ai_smart_test_selector.models.ml_model import train_model
+from ai_smart_test_selector.evaluation.evaluate_model import evaluate_model
 
 
 def main():
