@@ -1,9 +1,9 @@
+from pathlib import Path
 import pandas as pd
 
-def load_data(path="data/test_history.csv"):
-    df = pd.read_csv(path)
-    return df
+def load_data(path=None):
+    if path is None:
+        base_dir = Path(__file__).resolve().parents[3]
+        path = base_dir / "src" / "ai_smart_test_selector" / "data" / "test_history.csv"
 
-if __name__ == "__main__":
-    df = load_data()
-    print(df.head())
+    return pd.read_csv(path)
