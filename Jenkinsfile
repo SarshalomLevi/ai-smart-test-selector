@@ -72,7 +72,7 @@ pipeline {
                     $IMAGE_NAME:$TAG \
                     bash -c "
                         echo '=== RUNNING TESTS ==='
-                        pytest tests -v || true
+                        pytest tests -v
                     "
                 '''
             }
