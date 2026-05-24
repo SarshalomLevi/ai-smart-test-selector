@@ -78,15 +78,16 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Smoke Test') {
             steps {
                 sh '''
                     docker run --rm \
+                    -e PYTHONPATH=/app/src \
                     $IMAGE_NAME:$TAG \
                     bash -c "
                         echo '=== RUNNING SMOKE TEST ==='
-                        python -m ai_smart_test_selector.main --help
+                        python src/ai_smart_test_selector/main.py --help
                     "
                 '''
             }
