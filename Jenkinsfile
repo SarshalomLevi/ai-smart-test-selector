@@ -41,7 +41,7 @@ pipeline {
                     $IMAGE_NAME:$TAG \
                     bash -c "
                         echo '=== RUNNING FLAKE8 ==='
-                        flake8 src || true
+                        flake8 src
                     "
                 '''
             }
