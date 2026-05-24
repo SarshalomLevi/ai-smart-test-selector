@@ -69,6 +69,7 @@ pipeline {
             steps {
                 sh '''
                     docker run --rm \
+                    -e PYTHONPATH=/app/src \
                     $IMAGE_NAME:$TAG \
                     bash -c "
                         echo '=== RUNNING TESTS ==='
@@ -77,7 +78,6 @@ pipeline {
                 '''
             }
         }
-
         stage('Smoke Test') {
             steps {
                 sh '''
