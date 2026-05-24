@@ -78,6 +78,7 @@ pipeline {
                 '''
             }
         }
+        
         stage('Smoke Test') {
             steps {
                 sh '''
@@ -85,7 +86,7 @@ pipeline {
                     $IMAGE_NAME:$TAG \
                     bash -c "
                         echo '=== RUNNING SMOKE TEST ==='
-                        python main.py --help || true
+                        python -m ai_smart_test_selector.main --help
                     "
                 '''
             }
