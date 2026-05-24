@@ -6,8 +6,6 @@ from sklearn.metrics import (
     classification_report
 )
 
-import pandas as pd
-
 
 def evaluate_model(model, X_test, y_test):
 

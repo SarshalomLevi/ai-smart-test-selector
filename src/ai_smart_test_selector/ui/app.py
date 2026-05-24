@@ -1,23 +1,26 @@
+from src.models.ranking import rank_tests
+from src.models.ml_model import train_model
+from src.models.feature_engineering import add_features
+from src.data.loader import load_data
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+import streamlit as st
 import sys
 import os
 
-sys.path.append(
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../")
-    )
+# -------------------------
+# PATH SETUP (FIX E402)
+# -------------------------
+BASE_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "../../")
 )
+sys.path.append(BASE_DIR)
 
-import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-from sklearn.metrics import confusion_matrix
-
-from src.data.loader import load_data
-from src.models.feature_engineering import add_features
-from src.models.ml_model import train_model
-from src.models.ranking import rank_tests
+# -------------------------
+# IMPORTS
+# -------------------------
 
 
 # -------------------------
@@ -25,7 +28,7 @@ from src.models.ranking import rank_tests
 # -------------------------
 st.set_page_config(
     page_title="AI Smart Test Selector",
-    layout="wide"
+    layout="wide",
 )
 
 st.title("🧠 AI Smart Test Selector for Firmware Validation")
@@ -64,7 +67,9 @@ def get_risk_group(risk):
         return "LOW"
 
 
-ranked_df["risk_group"] = ranked_df["failure_probability"].apply(get_risk_group)
+ranked_df["risk_group"] = ranked_df["failure_probability"].apply(
+    get_risk_group
+)
 
 
 # -------------------------
@@ -76,17 +81,16 @@ min_risk = st.sidebar.slider("Min Risk", 0.0, 1.0, 0.0)
 max_risk = st.sidebar.slider("Max Risk", 0.0, 1.0, 1.0)
 
 filtered_df = ranked_df[
-    (ranked_df["failure_probability"] >= min_risk) &
-    (ranked_df["failure_probability"] <= max_risk)
+    (ranked_df["failure_probability"] >= min_risk)
+    & (ranked_df["failure_probability"] <= max_risk)
 ]
 
 
 # -------------------------
 # TABS (RISK FOLDERS)
 # -------------------------
-tab1, tab2, tab3, tab4 = st.tabs(
-    ["🔥 CRITICAL", "🔴 HIGH", "🟡 MEDIUM", "🟢 LOW"]
-)
+tabs = ["🔥 CRITICAL", "🔴 HIGH", "🟡 MEDIUM", "🟢 LOW"]
+tab1, tab2, tab3, tab4 = st.tabs(tabs)
 
 
 # -------------------------
@@ -111,42 +115,34 @@ def render_tests(df):
 
         with st.expander(title, expanded=False):
 
-            # -------------------------
-            # 1. AI EXPLANATION
-            # -------------------------
             st.subheader("🧠 AI Explanation")
             st.info(row.get("explanation", "No explanation available"))
 
-            # -------------------------
-            # 2. TEST DATA
-            # -------------------------
             st.subheader("📊 Test Data")
 
             st.dataframe(
-                pd.DataFrame({
-                    "Metric": [
-                        "Runtime (sec)",
-                        "Previous Failures",
-                        "Run Count",
-                        "Severity Score"
-                    ],
-                    "Value": [
-                        row["runtime_sec"],
-                        row["previous_failures"],
-                        row["run_count"],
-                        row["severity_score"]
-                    ]
-                }),
-                use_container_width=True
+                pd.DataFrame(
+                    {
+                        "Metric": [
+                            "Runtime (sec)",
+                            "Previous Failures",
+                            "Run Count",
+                            "Severity Score",
+                        ],
+                        "Value": [
+                            row["runtime_sec"],
+                            row["previous_failures"],
+                            row["run_count"],
+                            row["severity_score"],
+                        ],
+                    }
+                ),
+                use_container_width=True,
             )
 
-            # -------------------------
-            # 3. RECOMMENDED ACTION
-            # -------------------------
             st.subheader("🎯 Recommended Action")
 
             if risk > 0.85:
-
                 st.error(
                     "🔥 CRITICAL RISK\n"
                     "- Run immediately in smoke testing\n"
@@ -155,7 +151,6 @@ def render_tests(df):
                 )
 
             elif risk > 0.7:
-
                 st.warning(
                     "HIGH RISK\n"
                     "- Run early in regression\n"
@@ -163,7 +158,6 @@ def render_tests(df):
                 )
 
             elif risk > 0.4:
-
                 st.info(
                     "MEDIUM RISK\n"
                     "- Include in regression suite\n"
@@ -171,7 +165,6 @@ def render_tests(df):
                 )
 
             else:
-
                 st.success(
                     "LOW RISK\n"
                     "- Safe for nightly execution\n"
@@ -190,23 +183,21 @@ with tab1:
 with tab2:
     render_tests(
         filtered_df[
-            (filtered_df["failure_probability"] > 0.7) &
-            (filtered_df["failure_probability"] <= 0.85)
+            (filtered_df["failure_probability"] > 0.7)
+            & (filtered_df["failure_probability"] <= 0.85)
         ]
     )
 
 with tab3:
     render_tests(
         filtered_df[
-            (filtered_df["failure_probability"] > 0.4) &
-            (filtered_df["failure_probability"] <= 0.7)
+            (filtered_df["failure_probability"] > 0.4)
+            & (filtered_df["failure_probability"] <= 0.7)
         ]
     )
 
 with tab4:
-    render_tests(
-        filtered_df[filtered_df["failure_probability"] <= 0.4]
-    )
+    render_tests(filtered_df[filtered_df["failure_probability"] <= 0.4])
 
 
 # -------------------------
@@ -214,11 +205,7 @@ with tab4:
 # -------------------------
 st.subheader("📈 Risk Distribution")
 
-st.bar_chart(
-    filtered_df.set_index("test_name")[
-        "failure_probability"
-    ]
-)
+st.bar_chart(filtered_df.set_index("test_name")["failure_probability"])
 
 
 # -------------------------
@@ -229,7 +216,7 @@ st.subheader("🔥 Top Risky Tests")
 st.dataframe(
     filtered_df.sort_values(
         "failure_probability",
-        ascending=False
+        ascending=False,
     ).head(5)
 )
 
@@ -248,7 +235,7 @@ sns.heatmap(
     annot=True,
     fmt="d",
     cmap="Blues",
-    ax=ax
+    ax=ax,
 )
 
 ax.set_xlabel("Predicted")
@@ -265,10 +252,12 @@ st.subheader("📈 Feature Importance")
 importance = model.feature_importances_
 features = X_test.columns
 
-df_imp = pd.DataFrame({
-    "feature": features,
-    "importance": importance
-}).sort_values("importance", ascending=False)
+df_imp = pd.DataFrame(
+    {
+        "feature": features,
+        "importance": importance,
+    }
+).sort_values("importance", ascending=False)
 
 fig2, ax2 = plt.subplots()
 
@@ -276,7 +265,7 @@ sns.barplot(
     data=df_imp,
     x="importance",
     y="feature",
-    ax=ax2
+    ax=ax2,
 )
 
 st.pyplot(fig2)
@@ -289,14 +278,15 @@ st.subheader("📦 Generate Release Test Suite")
 
 release_df = filtered_df.sort_values(
     "failure_probability",
-    ascending=False
+    ascending=False,
 ).head(5)
 
-csv = release_df.to_csv(index=False).encode("utf-8")
+csv_str = release_df.to_csv(index=False)
+csv = csv_str.encode("utf-8")
 
 st.download_button(
     label="⬇️ Download Release Test Suite CSV",
     data=csv,
     file_name="release_test_suite.csv",
-    mime="text/csv"
+    mime="text/csv",
 )
