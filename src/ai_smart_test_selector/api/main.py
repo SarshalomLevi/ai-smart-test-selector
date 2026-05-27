@@ -1,11 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel, Field
 import pandas as pd
+import time
 
 from ai_smart_test_selector.data.loader import load_data
 from ai_smart_test_selector.models.feature_engineering import add_features
 from ai_smart_test_selector.models.ml_model import train_model
 from ai_smart_test_selector.models.ranking import rank_tests
+from ai_smart_test_selector.utils.logger import get_logger
 
 
 # =========================================================
@@ -13,24 +15,49 @@ from ai_smart_test_selector.models.ranking import rank_tests
 # =========================================================
 app = FastAPI(title="AI Smart Test Selector API")
 
+logger = get_logger("api")
+
 
 # =========================================================
-# STATE INITIALIZATION (PRODUCTION SAFE)
+# MIDDLEWARE (REQUEST LOGGING)
+# =========================================================
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+
+    response = await call_next(request)
+
+    duration = time.time() - start_time
+
+    logger.info(
+        f"{request.method} {request.url.path} "
+        f"status={response.status_code} "
+        f"time={duration:.3f}s"
+    )
+
+    return response
+
+
+# =========================================================
+# STATE INITIALIZATION (STARTUP)
 # =========================================================
 @app.on_event("startup")
 def startup_event():
     """
-    Load data + train model once when server starts
+    Load data + train model once on startup
     """
+    logger.info("Loading data and training model...")
+
     df = load_data()
     df = add_features(df)
 
     model, X_test, y_test = train_model(df)
     ranked_df = rank_tests(model, df)
 
-    # store globally in app state (production pattern)
     app.state.model = model
     app.state.ranked_df = ranked_df
+
+    logger.info("Startup completed successfully")
 
 
 # =========================================================
@@ -57,8 +84,6 @@ def get_model():
 # =========================================================
 # ENDPOINTS
 # =========================================================
-
-
 @app.get("/")
 def root():
     return {"message": "AI Smart Test Selector API is running"}
@@ -76,7 +101,6 @@ def rank_all_tests():
 @app.get("/available-tests")
 def available_tests():
     df = get_ranked_df()
-
     return {"tests": df["test_name"].tolist()}
 
 
