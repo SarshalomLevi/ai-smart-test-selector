@@ -5,9 +5,11 @@ import pytest
 def test_feature_engineering_output(df_features):
     assert len(df_features) > 0
 
+
 @pytest.mark.unit
 def test_feature_engineering_adds_columns(df_features):
     assert "runtime_sec" in df_features.columns
+
 
 # @pytest.mark.unit
 # def test_risk_score_exists(df_features):

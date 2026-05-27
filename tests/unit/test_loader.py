@@ -5,8 +5,9 @@ EXPECTED_COLUMNS = {
     "previous_failures",
     "run_count",
     "severity_score",
-    "failed"
+    "failed",
 }
+
 
 @pytest.mark.unit
 def test_data_not_empty(df):
