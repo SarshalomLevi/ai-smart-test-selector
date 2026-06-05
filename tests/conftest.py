@@ -23,5 +23,5 @@ def df_features():
 
 @pytest.fixture
 def model_bundle(df_features):
-    model, X_test, y_test = train_model(df_features)
+    model, X_test, y_test, _ = train_model(df_features)
     return model, X_test, y_test

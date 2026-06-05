@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
     df = load_data()
     df = add_features(df)
 
-    model, X_test, y_test = train_model(df)
+    model, X_test, y_test, *_ = train_model(df)
     ranked_df = rank_tests(model, df)
 
     app.state.model = model

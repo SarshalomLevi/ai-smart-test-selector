@@ -13,9 +13,7 @@ import os
 # -------------------------
 # PATH SETUP (FIX E402)
 # -------------------------
-BASE_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../")
-)
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 sys.path.append(BASE_DIR)
 
 # -------------------------
@@ -44,7 +42,7 @@ df = add_features(df)
 # -------------------------
 # TRAIN MODEL
 # -------------------------
-model, X_test, y_test = train_model(df)
+model, X_test, y_test, *_ = train_model(df)
 
 
 # -------------------------
@@ -67,9 +65,7 @@ def get_risk_group(risk):
         return "LOW"
 
 
-ranked_df["risk_group"] = ranked_df["failure_probability"].apply(
-    get_risk_group
-)
+ranked_df["risk_group"] = ranked_df["failure_probability"].apply(get_risk_group)
 
 
 # -------------------------
@@ -152,23 +148,17 @@ def render_tests(df):
 
             elif risk > 0.7:
                 st.warning(
-                    "HIGH RISK\n"
-                    "- Run early in regression\n"
-                    "- Prioritize execution"
+                    "HIGH RISK\n" "- Run early in regression\n" "- Prioritize execution"
                 )
 
             elif risk > 0.4:
                 st.info(
-                    "MEDIUM RISK\n"
-                    "- Include in regression suite\n"
-                    "- Monitor trends"
+                    "MEDIUM RISK\n" "- Include in regression suite\n" "- Monitor trends"
                 )
 
             else:
                 st.success(
-                    "LOW RISK\n"
-                    "- Safe for nightly execution\n"
-                    "- Low priority"
+                    "LOW RISK\n" "- Safe for nightly execution\n" "- Low priority"
                 )
 
             st.divider()

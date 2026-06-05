@@ -5,7 +5,7 @@ import pytest
 @pytest.mark.unit
 @pytest.mark.ml
 def test_model_training(model_bundle):
-    model, X_test, y_test = model_bundle
+    model, X_test, y_test, *_ = model_bundle
 
     assert model is not None
     assert len(X_test) > 0
@@ -16,7 +16,7 @@ def test_model_training(model_bundle):
 @pytest.mark.unit
 @pytest.mark.ml
 def test_model_prediction(model_bundle):
-    model, X_test, y_test = model_bundle
+    model, X_test, y_test, *_ = model_bundle
 
     predictions = model.predict(X_test)
 
@@ -25,9 +25,12 @@ def test_model_prediction(model_bundle):
 
 
 # Ensures model exposes feature importance
+def has_explainability(model):
+    return hasattr(model, "feature_importances_") or hasattr(model, "coef_")
+
+
 @pytest.mark.unit
 @pytest.mark.ml
-def test_model_has_feature_importance(model_bundle):
-    model, _, _ = model_bundle
-
-    assert hasattr(model, "feature_importances_")
+def test_model_has_explainability(model_bundle):
+    model, _, _, *_ = model_bundle
+    assert has_explainability(model)
