@@ -4,9 +4,10 @@ import pandas as pd
 import time
 from contextlib import asynccontextmanager
 
+import mlflow.pyfunc
+
 from ai_smart_test_selector.data.loader import load_data
 from ai_smart_test_selector.models.feature_engineering import add_features
-from ai_smart_test_selector.models.ml_model import train_model
 from ai_smart_test_selector.models.ranking import rank_tests
 from ai_smart_test_selector.utils.logger import get_logger
 
@@ -18,28 +19,40 @@ logger = get_logger("api")
 
 
 # =========================================================
+# MODEL CONFIG (MLFLOW PRODUCTION)
+# =========================================================
+MODEL_NAME = "test-risk-model"
+MODEL_STAGE = "Production"
+
+
+# =========================================================
 # LIFESPAN (STARTUP + SHUTDOWN)
 # =========================================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Loading data and training model...")
 
+    logger.info("Loading production model from MLflow Registry...")
+
+    # 1. Load data + ranking (no training here anymore)
     df = load_data()
     df = add_features(df)
 
-    model, X_test, y_test, *_ = train_model(df)
-    ranked_df = rank_tests(model, df)
+    ranked_df = rank_tests(None, df)  # ranking independent of model training
 
+    # 2. LOAD MODEL FROM MLFLOW (THIS IS THE IMPORTANT PART)
+    model = mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}/{MODEL_STAGE}")
+
+    # 3. Store in app state
     app.state.model = model
     app.state.ranked_df = ranked_df
 
-    logger.info("Startup completed successfully")
+    logger.info("Startup completed successfully ✔")
 
     yield
 
 
 # =========================================================
-# APP INIT (IMPORTANT: lifespan here!)
+# APP INIT
 # =========================================================
 app = FastAPI(title="AI Smart Test Selector API", lifespan=lifespan)
 
@@ -49,6 +62,7 @@ app = FastAPI(title="AI Smart Test Selector API", lifespan=lifespan)
 # =========================================================
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
+
     start_time = time.time()
 
     response = await call_next(request)
@@ -96,11 +110,12 @@ def get_model():
 # =========================================================
 @app.get("/")
 def root():
-    return {"message": "AI Smart Test Selector API is running"}
+    return {"message": "AI Smart Test Selector API is running (PRODUCTION MODE)"}
 
 
 @app.get("/rank-tests")
 def rank_all_tests():
+
     df = get_ranked_df()
 
     return df[["test_name", "failure_probability", "explanation"]].to_dict(
@@ -110,12 +125,15 @@ def rank_all_tests():
 
 @app.get("/available-tests")
 def available_tests():
+
     df = get_ranked_df()
+
     return {"tests": df["test_name"].tolist()}
 
 
 @app.get("/top-risky")
 def top_risky_tests():
+
     df = get_ranked_df()
 
     top_df = df.sort_values("failure_probability", ascending=False).head(5)
@@ -127,6 +145,7 @@ def top_risky_tests():
 
 @app.get("/critical-tests")
 def critical_tests():
+
     df = get_ranked_df()
 
     critical_df = df[df["failure_probability"] > 0.7]
@@ -138,6 +157,7 @@ def critical_tests():
 
 @app.get("/simulate-test/{test_name}")
 def simulate_test(test_name: str):
+
     df = get_ranked_df()
 
     selected = df[df["test_name"] == test_name]
@@ -167,6 +187,7 @@ def simulate_test(test_name: str):
 
 @app.post("/predict")
 def predict(test: TestInput):
+
     model = get_model()
 
     input_df = pd.DataFrame(
@@ -180,18 +201,9 @@ def predict(test: TestInput):
         ]
     )
 
-    probability = model.predict_proba(input_df)[0][1]
-
-    if probability > 0.85:
-        explanation = "Critical risk due to severe instability"
-    elif probability > 0.7:
-        explanation = "High risk due to frequent failures"
-    elif probability > 0.4:
-        explanation = "Medium risk due to unstable behavior"
-    else:
-        explanation = "Low risk and stable history"
+    probability = model.predict(input_df)[0]
 
     return {
         "failure_probability": round(float(probability), 2),
-        "explanation": explanation,
+        "explanation": "Predicted using MLflow Production Model",
     }

@@ -6,16 +6,27 @@ from sklearn.metrics import (
     f1_score,
 )
 
+from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import (
     RandomForestClassifier,
     GradientBoostingClassifier,
+    ExtraTreesClassifier,
 )
 
-from sklearn.linear_model import LogisticRegression
+# Advanced models (optional but industry-level)
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
+from catboost import CatBoostClassifier
 
 
+# =========================
+# TRAIN MODEL PIPELINE
+# =========================
 def train_model(df):
 
+    # -------------------------
+    # Features & Target
+    # -------------------------
     X = df[
         [
             "runtime_sec",
@@ -27,6 +38,9 @@ def train_model(df):
 
     y = df["failed"]
 
+    # -------------------------
+    # Train/Test Split
+    # -------------------------
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
@@ -35,48 +49,71 @@ def train_model(df):
         stratify=y,
     )
 
+    # -------------------------
+    # Models Pool
+    # -------------------------
     models = {
-        "LogisticRegression": LogisticRegression(max_iter=1000),
-        "RandomForest": RandomForestClassifier(
+        "logreg": LogisticRegression(max_iter=1000),
+        "rf": RandomForestClassifier(
             n_estimators=100,
             random_state=42,
         ),
-        "GradientBoosting": GradientBoostingClassifier(),
+        "gb": GradientBoostingClassifier(),
+        "extra_trees": ExtraTreesClassifier(random_state=42),
+        "xgb": XGBClassifier(
+            eval_metric="logloss",
+            random_state=42,
+        ),
+        "lgbm": LGBMClassifier(),
+        "catboost": CatBoostClassifier(verbose=0),
     }
 
     results = {}
 
     best_model = None
-    best_f1 = 0
+    best_name = None
+    best_f1 = -1
 
+    # -------------------------
+    # Training Loop
+    # -------------------------
     for name, model in models.items():
 
         model.fit(X_train, y_train)
+        preds = model.predict(X_test)
 
-        y_pred = model.predict(X_test)
-
-        accuracy = accuracy_score(y_test, y_pred)
-        precision = precision_score(y_test, y_pred)
-        recall = recall_score(y_test, y_pred)
-        f1 = f1_score(y_test, y_pred)
+        metrics = {
+            "accuracy": accuracy_score(y_test, preds),
+            "precision": precision_score(y_test, preds),
+            "recall": recall_score(y_test, preds),
+            "f1": f1_score(y_test, preds),
+        }
 
         results[name] = {
-            "accuracy": accuracy,
-            "precision": precision,
-            "recall": recall,
-            "f1": f1,
+            "model": model,
+            **metrics,
         }
 
         print(f"\n{name}")
-        print(f"Accuracy : {accuracy:.3f}")
-        print(f"Precision: {precision:.3f}")
-        print(f"Recall   : {recall:.3f}")
-        print(f"F1 Score : {f1:.3f}")
+        print(f"Accuracy : {metrics['accuracy']:.3f}")
+        print(f"Precision: {metrics['precision']:.3f}")
+        print(f"Recall   : {metrics['recall']:.3f}")
+        print(f"F1 Score : {metrics['f1']:.3f}")
 
-        if f1 > best_f1:
-            best_f1 = f1
+        if metrics["f1"] > best_f1:
+            best_f1 = metrics["f1"]
             best_model = model
+            best_name = name
 
-    print("\nBEST MODEL F1:", best_f1)
+    # -------------------------
+    # Summary
+    # -------------------------
+    print("\n=========================")
+    print("BEST MODEL:", best_name)
+    print("BEST F1   :", best_f1)
+    print("=========================\n")
 
-    return best_model, X_test, y_test, results
+    # -------------------------
+    # Return for pipeline / MLflow
+    # -------------------------
+    return best_model, X_test, y_test, results, best_name

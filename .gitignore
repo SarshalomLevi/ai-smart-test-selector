@@ -16,6 +16,7 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Logs
+ds
 *.log
 gcm-diagnose.log
 
