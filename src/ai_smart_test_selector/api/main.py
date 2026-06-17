@@ -8,7 +8,6 @@ import mlflow.pyfunc
 
 from ai_smart_test_selector.data.loader import load_data
 from ai_smart_test_selector.models.feature_engineering import add_features
-from ai_smart_test_selector.models.ranking import rank_tests
 from ai_smart_test_selector.utils.logger import get_logger
 
 
@@ -37,14 +36,14 @@ async def lifespan(app: FastAPI):
     df = load_data()
     df = add_features(df)
 
-    ranked_df = rank_tests(None, df)  # ranking independent of model training
+    # ranked_df = rank_tests(None, df)  # ranking independent of model training
 
     # 2. LOAD MODEL FROM MLFLOW (THIS IS THE IMPORTANT PART)
     model = mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}/{MODEL_STAGE}")
 
     # 3. Store in app state
     app.state.model = model
-    app.state.ranked_df = ranked_df
+    # app.state.ranked_df = ranked_df
 
     logger.info("Startup completed successfully ✔")
 

@@ -38,3 +38,18 @@ ai-smart-test-selector-backup/
 .coverage
 htmlcov/
 .pytest_cache/
+
+# =========================
+# ML / MLOps Artifacts
+# =========================
+mlruns/
+mlflow.db
+catboost_info/
+
+# Optional model artifacts
+models/
+artifacts/
+
+# Data files (optional if generated)
+*.pkl
+*.joblib
