@@ -1,60 +1,135 @@
+import numpy as np
 import pandas as pd
-import random
 
-tests = []
 
-modules = [
-    "PCIe",
-    "Memory",
-    "Boot",
-    "Power",
-    "USB",
-    "Clock",
-    "Thermal",
-    "Network",
-    "Reset",
-    "DMA",
-    "Interrupt",
-    "Voltage",
-    "Cache",
-    "IO",
-    "Firmware"
-]
+MODULES = {
+    "Clock": "Timing",
+    "DMA": "Memory",
+    "PCIe": "HighSpeedIO",
+    "USB": "Connectivity",
+    "Firmware": "Core",
+    "Memory": "Memory",
+    "Interrupt": "Core",
+    "Cache": "Memory",
+    "Boot": "Core",
+}
 
-for i in range(200):
 
-    module = random.choice(modules)
-
-    runtime_sec = random.randint(50, 1000)
-
-    previous_failures = random.randint(0, 10)
-
-    run_count = random.randint(5, 100)
-
-    severity_score = random.randint(1, 10)
-
-    # Failure logic
+def calculate_failure_risk(
+    previous_fail_rate,
+    flaky_score,
+    code_churn,
+    dependency_depth,
+    firmware_version,
+    environment,
+):
     risk = (
-        previous_failures * 0.4 +
-        severity_score * 0.3 +
-        runtime_sec / 1000
+        0.30 * previous_fail_rate
+        + 0.20 * flaky_score
+        + 0.20 * (code_churn / 100)
+        + 0.15 * (dependency_depth / 10)
+        + 0.10 * (firmware_version / 10)
     )
 
-    failed = 1 if risk > 4 else 0
+    if environment == "real_hw":
+        risk += 0.10
 
-    tests.append({
-        "test_name": f"{module}_test_{i}",
-        "module": module,
-        "runtime_sec": runtime_sec,
-        "previous_failures": previous_failures,
-        "run_count": run_count,
-        "severity_score": severity_score,
-        "failed": failed
-    })
+    return min(risk, 1.0)
 
-df = pd.DataFrame(tests)
 
-df.to_csv("data/test_history.csv", index=False)
+def generate_dataset(n=3000):
 
-print("Synthetic dataset created successfully!")
-print(df.head())
+    data = []
+
+    for i in range(n):
+
+        module = np.random.choice(list(MODULES.keys()))
+        subsystem = MODULES[module]
+
+        firmware_version = np.random.randint(1, 15)
+        hardware_revision = np.random.choice(["A", "B", "C"])
+
+        test_type = np.random.choice(
+            ["unit", "integration", "system"], p=[0.4, 0.35, 0.25]
+        )
+
+        execution_time_sec = np.random.randint(50, 1200)
+
+        cpu_load = np.random.randint(10, 100)
+        memory_usage = np.random.randint(100, 8000)
+        io_activity = np.random.randint(1, 100)
+
+        previous_fail_rate = np.random.uniform(0, 1)
+        flaky_score = np.random.uniform(0, 1)
+
+        code_churn_module = np.random.randint(0, 100)
+
+        last_bug_age_days = np.random.randint(1, 365)
+
+        dependency_depth = np.random.randint(1, 12)
+
+        environment = np.random.choice(["emu", "real_hw"], p=[0.3, 0.7])
+
+        risk = calculate_failure_risk(
+            previous_fail_rate,
+            flaky_score,
+            code_churn_module,
+            dependency_depth,
+            firmware_version,
+            environment,
+        )
+
+        failed = 1 if risk > 0.55 else 0
+
+        data.append(
+            [
+                f"test_{i}",
+                module,
+                subsystem,
+                firmware_version,
+                hardware_revision,
+                test_type,
+                execution_time_sec,
+                cpu_load,
+                memory_usage,
+                io_activity,
+                previous_fail_rate,
+                flaky_score,
+                code_churn_module,
+                last_bug_age_days,
+                dependency_depth,
+                environment,
+                failed,
+            ]
+        )
+
+    columns = [
+        "test_id",
+        "module",
+        "subsystem",
+        "firmware_version",
+        "hardware_revision",
+        "test_type",
+        "execution_time_sec",
+        "cpu_load",
+        "memory_usage",
+        "io_activity",
+        "previous_fail_rate",
+        "flaky_score",
+        "code_churn_module",
+        "last_bug_age_days",
+        "dependency_depth",
+        "environment",
+        "failed",
+    ]
+
+    return pd.DataFrame(data, columns=columns)
+
+
+if __name__ == "__main__":
+
+    df = generate_dataset(3000)
+
+    df.to_csv("src/ai_smart_test_selector/data/test_history.csv", index=False)
+
+    print("dataset created")

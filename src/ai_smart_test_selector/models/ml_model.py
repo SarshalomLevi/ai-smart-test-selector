@@ -27,16 +27,16 @@ def train_model(df):
     # -------------------------
     # Features & Target
     # -------------------------
-    X = df[
-        [
-            "runtime_sec",
-            "previous_failures",
-            "run_count",
-            "severity_score",
-        ]
-    ]
 
+    # Remove non-numeric columns just in case
+    X = df.drop(columns=["test_id", "failed"])
+
+    # safety: convert everything to numeric
+    X = X.select_dtypes(include=["number"])
     y = df["failed"]
+
+    print(df.dtypes)
+    print(df.head())
 
     # -------------------------
     # Train/Test Split
